@@ -1,0 +1,156 @@
+/* FinanceDashboard.css */
+.finance-container {
+    padding: 2rem;
+    color: #fff;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.finance-header {
+    margin-bottom: 2.5rem;
+}
+
+.finance-header h2 {
+    margin: 0 0 0.5rem 0;
+    font-size: 2rem;
+    font-weight: 700;
+}
+
+.subtitle {
+    color: #888;
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.empty-state {
+    background: #1a1a1a;
+    text-align: center;
+    padding: 4rem;
+    border-radius: 16px;
+    color: #666;
+    font-size: 1.2rem;
+    border: 1px dashed #333;
+}
+
+.expense-meta-finance {
+    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-end;
+}
+
+.expense-amount-large {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #10b981;
+}
+
+.approval-badge {
+    background: rgba(75, 138, 245, 0.1);
+    color: #4b8af5;
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border: 1px solid rgba(75, 138, 245, 0.2);
+}
+
+.approval-badge.rejected-badge {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+
+.date-badge {
+    color: #888;
+    font-size: 0.85rem;
+}
+
+.reject-reason {
+    color: #ef4444;
+    font-size: 0.85rem;
+    background: rgba(239, 68, 68, 0.1);
+    padding: 0.3rem 0.6rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+}
+
+/* Spendings Dashboard */
+.spendings-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+.spendings-hero {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
+    padding: 3rem;
+    border-radius: 20px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.spendings-hero h3 {
+    margin: 0 0 1rem 0;
+    color: #aaa;
+    font-size: 1.2rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+}
+
+.hero-amount {
+    font-size: 4rem;
+    font-weight: 900;
+    background: -webkit-linear-gradient(45deg, #ff0b58, #f89b29);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.spendings-breakdown {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2rem;
+}
+
+.breakdown-card {
+    background: #1a1a1a;
+    border-radius: 16px;
+    padding: 2rem;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.breakdown-card h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    font-size: 1.2rem;
+    border-bottom: 1px solid #333;
+    padding-bottom: 1rem;
+}
+
+.breakdown-card ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.breakdown-card li {
+    display: flex;
+    justify-content: space-between;
+    padding: 1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+.breakdown-card li:last-child {
+    border-bottom: none;
+}
+
+.breakdown-card li span {
+    color: #bbb;
+}
+
+.breakdown-card li strong {
+    font-size: 1.1rem;
+}

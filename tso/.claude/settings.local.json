@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -c \":*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const pkg = require\\(''./package.json''\\); console.log\\(''recharts:'', pkg.dependencies.recharts\\)\")",
+      "Bash(head -20 grep -n \"Dashboards\\\\|ManagerDashboard\" C:/Users/omkar/Desktop/swstk/TSO/tso/frontend/src/App.jsx)",
+      "Bash(ipconfig)",
+      "Bash(curl:*)",
+      "Bash(node -e \":*)",
+      "Bash(npm view:*)",
+      "Bash(npx expo:*)",
+      "Bash(netstat -ano)",
+      "Bash(powershell.exe -Command \"& 'C:\\\\Users\\\\omkar\\\\AppData\\\\Local\\\\Android\\\\Sdk\\\\emulator\\\\emulator.exe' -list-avds\" 2>&1)",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\omkar\\\\Desktop\\\\swstk\\\\TSO\\\\tso\\\\backend'; $env:FLASK_APP='run.py'; flask db migrate -m 'add priority to task' 2>&1\" 2>&1)",
+      "Bash(powershell.exe -Command @\"\ncd 'C:\\\\Users\\\\omkar\\\\Desktop\\\\swstk\\\\TSO\\\\tso\\\\backend'\npython -c @'\nimport sqlite3\nconn = sqlite3.connect\\('instance/tso.db'\\)\ncur = conn.cursor\\(\\)\ncur.execute\\(\\\\\"PRAGMA table_info\\(task\\)\\\\\"\\)\ncols = [row[1] for row in cur.fetchall\\(\\)]\nprint\\('columns:', cols\\)\nconn.close\\(\\)\n'@\n\"@ 2>&1)",
+      "Bash(powershell.exe -Command \"cd 'C:\\\\Users\\\\omkar\\\\Desktop\\\\swstk\\\\TSO\\\\tso\\\\backend'; python fix_priority.py\" 2>&1)",
+      "Bash(python fix_comment_schema.py)",
+      "Bash(ls /c/Users/omkar/Desktop/swstk/TSO/tso/backend/migrations/versions/*.py)",
+      "Bash(python -m flask db migrate -m \"add_messaging_requirements_last_active\")",
+      "Bash(python -m flask db current)",
+      "Bash(venv/Scripts/python -c \"from app.api import messaging_routes\")",
+      "Bash(venv/Scripts/python -c \"import sys; sys.path.insert\\(0, ''.''\\); from app import create_app; app = create_app\\(\\)\")",
+      "Bash(\"venv/Scripts/python.exe\" -c \"import sys; sys.path.insert\\(0, ''.''\\); from app import create_app; app = create_app\\(\\)\")",
+      "Bash(python:*)",
+      "Bash(find C:UsersomkarDesktopswstkTSOtsomobilesrc -type f \\\\\\(-name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx \\\\\\))"
+    ]
+  }
+}

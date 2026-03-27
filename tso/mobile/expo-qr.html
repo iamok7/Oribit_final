@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TSO Mobile - Expo QR Code</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center;
+           justify-content: center; min-height: 100vh; margin: 0; background: #EDE9F8; }
+    .card { background: white; border-radius: 20px; padding: 40px; text-align: center;
+            box-shadow: 0 8px 32px rgba(124,111,205,0.2); max-width: 400px; width: 90%; }
+    h1 { color: #7C6FCD; margin-bottom: 4px; font-size: 28px; }
+    p { color: #6B6B8A; margin-bottom: 24px; }
+    #qrcode { display: flex; justify-content: center; margin: 20px 0; }
+    .url { background: #EDE9F8; border-radius: 10px; padding: 12px 20px;
+           color: #1A1A2E; font-size: 14px; font-weight: 600; word-break: break-all; margin-top: 16px; }
+    .steps { text-align: left; color: #6B6B8A; font-size: 14px; margin-top: 20px; line-height: 1.8; }
+    .steps b { color: #1A1A2E; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>TSO Mobile</h1>
+    <p>Scan with <b>Expo Go</b> on your iPhone</p>
+    <div id="qrcode"></div>
+    <div class="url">exp://192.168.1.35:8081</div>
+    <div class="steps">
+      <b>Steps:</b><br>
+      1. Open <b>Expo Go</b> on your iPhone<br>
+      2. Tap <b>"Scan QR Code"</b><br>
+      3. Scan the QR code above<br><br>
+      <b>Or manually:</b><br>
+      Tap "Enter URL manually" → type the URL above
+    </div>
+  </div>
+  <script>
+    new QRCode(document.getElementById("qrcode"), {
+      text: "exp://192.168.1.35:8081",
+      width: 220,
+      height: 220,
+      colorDark: "#1A1A2E",
+      colorLight: "#ffffff",
+      correctLevel: QRCode.CorrectLevel.M
+    });
+  </script>
+</body>
+</html>
