@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { loginAPI } from '../services/api';
+import { loginAPI, signupAPI } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -35,7 +35,18 @@ export const AuthProvider = ({ children }) => {
       setIsLoading(true);
       const response = await loginAPI(username, password);
       if (response && (response.id || response.user)) {
-        const userData = response.user || { id: response.id, username: response.username, role: response.role };
+        const userData = response.user || {
+          id: response.id,
+          username: response.username,
+          email: response.email,
+          first_name: response.first_name,
+          last_name: response.last_name,
+          role: response.role,
+          user_type: response.user_type || 'company_member',
+          company_id: response.company_id || null,
+          company_name: response.company_name || null,
+          department_id: response.department_id,
+        };
         const userToken = response.token || response.session_token || username;
         setUser(userData);
         setToken(userToken);
@@ -48,6 +59,32 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Login error:', error);
       return { success: false, error: error.message || 'Login failed' };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const signup = async (signupData) => {
+    try {
+      setIsLoading(true);
+      const response = await signupAPI(signupData);
+      if (response && response.user) {
+        const userData = {
+          ...response.user,
+          user_type: response.user.user_type || 'individual',
+        };
+        const userToken = userData.username;
+        setUser(userData);
+        setToken(userToken);
+        await AsyncStorage.setItem('tso_user', JSON.stringify(userData));
+        await AsyncStorage.setItem('tso_token', userToken);
+        return { success: true, user: userData };
+      } else {
+        return { success: false, error: response?.message || 'Signup failed' };
+      }
+    } catch (error) {
+      console.error('Signup error:', error);
+      return { success: false, error: error.message || 'Signup failed' };
     } finally {
       setIsLoading(false);
     }
@@ -70,13 +107,15 @@ export const AuthProvider = ({ children }) => {
     return roles.includes(user.role);
   };
 
+  const isIndividual = () => user?.user_type === 'individual';
+  const isCompanyMember = () => !isIndividual();
   const isManager = () => hasRole('manager');
   const isSupervisor = () => hasRole('supervisor');
   const isEmployee = () => hasRole('employee');
   const isFinance = () => hasRole('finance');
-  const canApproveExpenses = () => hasRole(['manager', 'supervisor', 'finance']);
-  const canManageUsers = () => hasRole('manager');
-  const canManageDepartments = () => hasRole(['manager', 'supervisor']);
+  const canApproveExpenses = () => !isIndividual() && hasRole(['manager', 'supervisor', 'finance']);
+  const canManageUsers = () => !isIndividual() && hasRole('manager');
+  const canManageDepartments = () => !isIndividual() && hasRole(['manager', 'supervisor']);
 
   return (
     <AuthContext.Provider
@@ -85,8 +124,11 @@ export const AuthProvider = ({ children }) => {
         token,
         isLoading,
         login,
+        signup,
         logout,
         hasRole,
+        isIndividual,
+        isCompanyMember,
         isManager,
         isSupervisor,
         isEmployee,

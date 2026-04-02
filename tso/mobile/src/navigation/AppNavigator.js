@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '../context/AuthContext';
 
 import LoginScreen      from '../screens/LoginScreen';
+import SignupScreen     from '../screens/SignupScreen';
 import HomeScreen       from '../screens/HomeScreen';
 import TasksScreen      from '../screens/TasksScreen';
 import TaskDetailScreen from '../screens/TaskDetailScreen';
@@ -99,7 +100,7 @@ const FABButton = ({ onPress }) => (
 const BlankScreen = () => <View style={{ flex: 1, backgroundColor: G.bgDark }} />;
 
 // ── More tab button — self-contained with Modal ──────────────────────────────
-function MoreTabButton({ navigation, role }) {
+function MoreTabButton({ navigation, role, userType }) {
   const insets  = useSafeAreaInsets();
   const [show, setShow]   = useState(false);
   const anim = useRef(new Animated.Value(0)).current;
@@ -122,26 +123,27 @@ function MoreTabButton({ navigation, role }) {
 
   // ── Role-based action lists ────────────────────────────────────────────────
   const ACTIONS = {
+    individual: [
+      { icon: 'calendar',            label: 'Calendar',       color: G.purple, screen: 'CalendarStack' },
+      { icon: 'trending-up',         label: 'My Stats',       color: G.p600,   screen: 'Progress' },
+    ],
     manager: [
       { icon: 'people',              label: 'Team',           color: G.red,    screen: 'UsersStack' },
-      { icon: 'business',            label: 'Dept',   color: G.amber,  screen: 'DepartmentsStack' },
+      { icon: 'business',            label: 'Dept',           color: G.amber,  screen: 'DepartmentsStack' },
       { icon: 'wallet',              label: 'Expenses',       color: G.green,  screen: 'ExpensesStack' },
       { icon: 'calendar',            label: 'Calendar',       color: G.purple, screen: 'CalendarStack' },
       { icon: 'bar-chart',           label: 'My Stats',       color: G.p600,   screen: 'Progress' },
       { icon: 'receipt',             label: 'Add Expense',    color: G.p700,   screen: 'AddExpense' },
-      // { icon: 'add-circle',          label: 'Add Task',       color: G.txtMain,screen: 'AddTask', params: { task: null } },
       { icon: 'chatbubble-ellipses', label: 'Messages',       color: G.p500,   screen: 'Messaging' },
       { icon: 'clipboard',           label: 'Req Team',       color: G.amber,  screen: 'Requirements' },
       { icon: 'clipboard-outline',   label: 'Post Need',      color: '#8B5CF6',screen: 'PostRequirement' },
     ],
     supervisor: [
       { icon: 'people',              label: 'Team',           color: G.red,    screen: 'UsersStack' },
-      // { icon: 'business',            label: 'Departments',    color: G.amber,  screen: 'DepartmentsStack' },
       { icon: 'wallet',              label: 'Expenses',       color: G.green,  screen: 'ExpensesStack' },
       { icon: 'calendar',            label: 'Calendar',       color: G.purple, screen: 'CalendarStack' },
       { icon: 'bar-chart',           label: 'My Stats',       color: G.p600,   screen: 'Progress' },
       { icon: 'receipt',             label: 'Add Expense',    color: G.p700,   screen: 'AddExpense' },
-      // { icon: 'add-circle',          label: 'Add Task',       color: G.txtMain,screen: 'AddTask', params: { task: null } },
       { icon: 'chatbubble-ellipses', label: 'Messages',       color: G.p500,   screen: 'Messaging' },
       { icon: 'clipboard',           label: 'Requirements',   color: G.amber,  screen: 'Requirements' },
       { icon: 'clipboard-outline',   label: 'Post Need',      color: '#8B5CF6',screen: 'PostRequirement' },
@@ -162,7 +164,9 @@ function MoreTabButton({ navigation, role }) {
     ],
   };
 
-  const actions = ACTIONS[role] || [];
+  // Individual users use their own action set regardless of role
+  const actionKey = userType === 'individual' ? 'individual' : (role || 'employee');
+  const actions = ACTIONS[actionKey] || ACTIONS['employee'];
 
   return (
     <>
@@ -229,10 +233,12 @@ function MoreTabButton({ navigation, role }) {
 function MainTabs({ navigation }) {
   const { user } = useAuth();
   const role = user?.role;
+  const userType = user?.user_type || 'company_member';
+  const isIndividualUser = userType === 'individual';
 
-  // 4th tab: role-specific screen OR More button
+  // 4th tab: calendar for employees/individual OR More button for managers/supervisors
   const getFourthTab = () => {
-    if (role === 'employee') {
+    if (role === 'employee' || isIndividualUser) {
       return (
         <Tab.Screen
           name="Calendar"
@@ -252,7 +258,7 @@ function MainTabs({ navigation }) {
         options={{
           headerShown: false,
           tabBarLabel: () => null,
-          tabBarButton: () => <MoreTabButton navigation={navigation} role={role} />,
+          tabBarButton: () => <MoreTabButton navigation={navigation} role={role} userType={userType} />,
         }}
       />
     );
@@ -325,7 +331,10 @@ export default function AppNavigator() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, cardStyle: { backgroundColor: G.bgDark } }}>
       {!user ? (
-        <Stack.Screen name="Login" component={LoginScreen} />
+        <>
+          <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Signup" component={SignupScreen} />
+        </>
       ) : (
         <>
           <Stack.Screen name="Main"             component={MainTabs} />

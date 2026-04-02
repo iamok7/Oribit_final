@@ -52,7 +52,7 @@ const liquidShadow = {
   elevation: 10,
 };
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -195,6 +195,14 @@ export default function LoginScreen() {
             </View>
           </View>
 
+          {/* ── Sign Up Link ── */}
+          <View style={styles.signupRow}>
+            <Text style={styles.signupText}>New to TaskOrbit?</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('Signup')} activeOpacity={0.7}>
+              <Text style={styles.signupLink}>Create Account</Text>
+            </TouchableOpacity>
+          </View>
+
           {/* ── Footer ── */}
           <View style={styles.footer}>
             <Text style={styles.footerText}>TSO Project Management System</Text>
@@ -259,8 +267,13 @@ const styles = StyleSheet.create({
   signInButtonDisabled: { opacity: 0.6 },
   signInButtonText: { fontSize: 16, fontWeight: '900', color: G.white, letterSpacing: 0.5 },
 
+  // ── Sign Up link ──
+  signupRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 24 },
+  signupText: { fontSize: 14, color: G.txtFaint, fontWeight: '700' },
+  signupLink: { fontSize: 14, color: G.p700, fontWeight: '900' },
+
   // ── Footer ──
-  footer: { alignItems: 'center', marginTop: 40 },
+  footer: { alignItems: 'center', marginTop: 16 },
   footerText: { fontSize: 13, color: G.txtFaint, fontWeight: '800' },
   footerVersion: { fontSize: 11, color: G.txtFaint, fontWeight: '800', marginTop: 4, opacity: 0.7 },
 });

@@ -1,12 +1,29 @@
 from datetime import datetime
 from app import db
 from werkzeug.security import generate_password_hash, check_password_hash
+import random
+import string
 
 # Association table for the many-to-many relationship between Users and Projects
 project_members = db.Table('project_members',
     db.Column('user_id', db.Integer, db.ForeignKey('user.id'), primary_key=True),
     db.Column('project_id', db.Integer, db.ForeignKey('project.id'), primary_key=True)
 )
+
+
+def generate_company_code():
+    """Generate a unique 8-character alphanumeric company code."""
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+
+
+class Company(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(100), nullable=False)
+    company_code = db.Column(db.String(20), unique=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def __repr__(self):
+        return f'<Company {self.name} ({self.company_code})>'
 
 class Task(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -72,8 +89,9 @@ class Comment(db.Model):
 
 class Department(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(100), unique=True, nullable=False)
+    name = db.Column(db.String(100), nullable=False)
     is_deleted = db.Column(db.Boolean, default=False)
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
     
     # Establish relationship with User holding the 'supervisor' role and 'employee' role.
     members = db.relationship('User', backref='department', lazy='dynamic')
@@ -106,11 +124,18 @@ class Project(db.Model):
 class User(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)
+    email = db.Column(db.String(120), nullable=True)
+    first_name = db.Column(db.String(50), nullable=True)
+    last_name = db.Column(db.String(50), nullable=True)
     password_hash = db.Column(db.String(256))
     role = db.Column(db.String(20), default='employee') # manager, supervisor, employee, finance
+    user_type = db.Column(db.String(20), default='company_member')  # 'individual' or 'company_member'
+    company_id = db.Column(db.Integer, db.ForeignKey('company.id'), nullable=True)
     department_id = db.Column(db.Integer, db.ForeignKey('department.id'), nullable=True)
     is_active = db.Column(db.Boolean, default=True)
     last_active = db.Column(db.DateTime, nullable=True)
+
+    company = db.relationship('Company', foreign_keys=[company_id], backref=db.backref('members', lazy='dynamic'))
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)

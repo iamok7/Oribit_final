@@ -1,8 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// TODO: update this IP whenever you switch networks
-const BASE_URL = 'http://192.168.1.35:5000'
-// const BASE_URL = 'http://172.20.10.3:5001';
+// PROD backend
+const BASE_URL = 'https://taskorbit.nexvitech.in';
 
 const getHeaders = async () => {
   const token = await AsyncStorage.getItem('tso_token');
@@ -79,23 +78,68 @@ export const logoutAPI = async () => {
   return request('POST', '/auth/logout');
 };
 
+export const signupAPI = async (data) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  try {
+    const response = await fetch(`${BASE_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      signal: controller.signal,
+    });
+    return handleResponse(response);
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Server unreachable — check backend is running');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
+export const validateCompanyCodeAPI = async (code) => {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`${BASE_URL}/auth/validate_company_code?code=${encodeURIComponent(code)}`, {
+      method: 'GET',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+    });
+    return handleResponse(response);
+  } catch (err) {
+    if (err.name === 'AbortError') throw new Error('Server unreachable');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+};
+
 export const createUserAPI = async (data) => {
   return request('POST', '/auth/create_user', data);
 };
 
 // Users
-export const getUsers = async (role = null) => {
-  const query = role ? `?role=${role}` : '';
+export const getUsers = async (role = null, extraParams = {}) => {
+  const user = await getCurrentUser();
+  const params = new URLSearchParams();
+  if (role) params.set('role', role);
+  if (user?.company_id) params.set('company_id', user.company_id);
+  Object.entries(extraParams).forEach(([k, v]) => { if (v !== null && v !== undefined) params.set(k, v); });
+  const query = params.toString() ? `?${params.toString()}` : '';
   return request('GET', `/api/users${query}`);
 };
 
 // Departments
 export const getDepartments = async () => {
-  return request('GET', '/api/departments');
+  const user = await getCurrentUser();
+  const query = user?.company_id ? `?company_id=${user.company_id}` : '';
+  return request('GET', `/api/departments${query}`);
 };
 
 export const createDepartment = async (name) => {
-  return request('POST', '/api/departments', { name });
+  const user = await getCurrentUser();
+  return request('POST', '/api/departments', { name, company_id: user?.company_id || null });
 };
 
 export const updateDepartment = async (id, data) => {
@@ -211,8 +255,9 @@ export const updateFinanceStatus = async (id, status, reason = '') => {
 // Dashboard
 export const getDashboardStats = async () => {
   const user = await getCurrentUser();
-  if (user?.role === 'manager') {
-    const data = await request('GET', '/api/stats/manager-dashboard');
+  if (user?.role === 'manager' && user?.user_type !== 'individual') {
+    const query = user?.company_id ? `?company_id=${user.company_id}` : '';
+    const data = await request('GET', `/api/stats/manager-dashboard${query}`);
     return {
       today_tasks: data.total_tasks || 0,
       in_progress: data.task_inprogress || 0,
@@ -221,7 +266,7 @@ export const getDashboardStats = async () => {
       ...data,
     };
   }
-  // For other roles, compute stats from tasks
+  // For individual users and other roles, compute stats from their tasks only
   const tasks = await getTasks();
   const today = new Date().toDateString();
   return {
@@ -239,7 +284,9 @@ export const getCalendarEvents = async (month, year) => {
 
 // ── Performance Stats ─────────────────────────────────────────────────────────
 export const getManagerDashboard = async () => {
-  return request('GET', '/api/stats/manager-dashboard');
+  const user = await getCurrentUser();
+  const query = user?.company_id ? `?company_id=${user.company_id}` : '';
+  return request('GET', `/api/stats/manager-dashboard${query}`);
 };
 
 export const getTeamStats = async (deptId) => {

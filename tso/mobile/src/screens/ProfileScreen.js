@@ -289,10 +289,20 @@ export default function ProfileScreen({ navigation }) {
                   <Text style={styles.infoLabel}>User ID</Text>
                   <Text style={styles.infoValue}>#{user.id}</Text>
                 </View>
-                <View style={[styles.infoRow, !user.department_id && { borderBottomWidth: 0 }]}>
-                  <Text style={styles.infoLabel}>Role</Text>
-                  <Text style={styles.infoValue}>{roleConfig.label}</Text>
+                <View style={[styles.infoRow, !user.department_id && !user.company_name && { borderBottomWidth: 0 }]}>
+                  <Text style={styles.infoLabel}>
+                    {user.user_type === 'individual' ? 'Account Type' : 'Role'}
+                  </Text>
+                  <Text style={styles.infoValue}>
+                    {user.user_type === 'individual' ? 'Individual' : roleConfig.label}
+                  </Text>
                 </View>
+                {user.company_name && user.user_type !== 'individual' && (
+                  <View style={[styles.infoRow, !user.department_id && { borderBottomWidth: 0 }]}>
+                    <Text style={styles.infoLabel}>Company</Text>
+                    <Text style={styles.infoValue}>{user.company_name}</Text>
+                  </View>
+                )}
                 {user.department_id && (
                   <View style={[styles.infoRow, { borderBottomWidth: 0 }]}>
                     <Text style={styles.infoLabel}>Department</Text>

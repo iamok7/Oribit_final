@@ -14,23 +14,31 @@ def seed_db():
             print(f"Error clearing users: {e}")
             db.session.rollback()
 
-        # Create users
-        manager = User(username='manager1', role='manager')
-        manager.set_password('password')
-        
-        supervisor = User(username='supervisor1', role='supervisor')
-        supervisor.set_password('password')
-        
-        employee = User(username='employee1', role='employee')
-        employee.set_password('password')
-        
+        users = [
+            # Managers
+            User(username='Rajesh',   role='manager'),
+            User(username='Suresh',   role='manager'),
+            # Supervisors
+            User(username='Priya',    role='supervisor'),
+            User(username='Kavitha',  role='supervisor'),
+            # Employees
+            User(username='Amit',     role='employee'),
+            User(username='Sunita',   role='employee'),
+            User(username='Vikram',   role='employee'),
+            User(username='Pooja',    role='employee'),
+            User(username='Arjun',    role='employee'),
+        ]
+
+        for user in users:
+            user.set_password('4445')
+
         try:
-            db.session.add(manager)
-            db.session.add(supervisor)
-            db.session.add(employee)
-            
+            for user in users:
+                db.session.add(user)
             db.session.commit()
-            print("Database seeded with initial users.")
+            print("Database seeded successfully:")
+            for u in users:
+                print(f"  username={u.username!r}  role={u.role}  password=4445")
         except Exception as e:
             print(f"Error seeding database: {e}")
             import traceback

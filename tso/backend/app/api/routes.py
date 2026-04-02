@@ -1,6 +1,6 @@
 from flask import request, jsonify
 from app import db
-from app.models import User, Department, Project, Task, Subtask, Issue, Comment, Expense, Notification
+from app.models import User, Department, Project, Task, Subtask, Issue, Comment, Expense, Notification, Company
 from app.api import bp
 from datetime import datetime, timedelta, date
 
@@ -101,17 +101,37 @@ def assign_project_members(proj_id):
 def get_users_by_role():
     role = request.args.get('role')
     unassigned_only = request.args.get('unassigned_only', 'false').lower() == 'true'
-    
+    company_id = request.args.get('company_id', type=int)
+
     query = User.query.filter_by(is_active=True)
+
+    # Isolate by company: only show users in the same company
+    if company_id:
+        query = query.filter_by(company_id=company_id)
+    else:
+        # Don't expose individual users or users from other companies
+        query = query.filter(User.company_id.is_(None))
+
     if role:
         query = query.filter_by(role=role)
-        
+
     if unassigned_only:
         query = query.filter(User.department_id.is_(None))
-        
+
     users = query.all()
-    user_list = [{'id': u.id, 'username': u.username, 'role': u.role, 'department_id': u.department_id} for u in users]
-    
+    user_list = [
+        {
+            'id': u.id,
+            'username': u.username,
+            'first_name': u.first_name,
+            'last_name': u.last_name,
+            'role': u.role,
+            'department_id': u.department_id,
+            'user_type': u.user_type,
+        }
+        for u in users
+    ]
+
     return jsonify(user_list), 200
 
 @bp.route('/users/<int:user_id>', methods=['GET'])
@@ -223,21 +243,31 @@ def get_recent_activity():
 @bp.route('/stats/employees', methods=['GET'])
 def get_employee_stats():
     """Return employee stats: role distribution, department distribution, task status breakdown."""
-    users = User.query.filter_by(is_active=True).all()
+    company_id = request.args.get('company_id', type=int)
+
+    user_query = User.query.filter_by(is_active=True)
+    if company_id:
+        user_query = user_query.filter_by(company_id=company_id)
+
+    users = user_query.all()
 
     # Role distribution
     role_counts = {}
     for u in users:
         role_counts[u.role] = role_counts.get(u.role, 0) + 1
 
-    # Department distribution
-    departments = Department.query.filter_by(is_deleted=False).all()
+    # Department distribution (scoped to company)
+    dept_query = Department.query.filter_by(is_deleted=False)
+    if company_id:
+        dept_query = dept_query.filter_by(company_id=company_id)
+    departments = dept_query.all()
+
     dept_dist = []
     for d in departments:
         count = User.query.filter_by(department_id=d.id, is_active=True).count()
         if count > 0:
             dept_dist.append({'name': d.name, 'count': count})
-    unassigned = User.query.filter_by(department_id=None, is_active=True).count()
+    unassigned = user_query.filter(User.department_id.is_(None)).count()
     if unassigned > 0:
         dept_dist.append({'name': 'Unassigned', 'count': unassigned})
 
@@ -259,21 +289,31 @@ def create_department():
     data = request.get_json()
     if not data or not 'name' in data:
         return jsonify({'message': 'Department name is required'}), 400
-        
-    if Department.query.filter_by(name=data['name']).first():
+
+    company_id = data.get('company_id')
+
+    # Unique per company (or globally if no company)
+    existing = Department.query.filter_by(name=data['name'], company_id=company_id, is_deleted=False).first()
+    if existing:
         return jsonify({'message': 'Department already exists'}), 400
-        
-    department = Department(name=data['name'])
+
+    department = Department(name=data['name'], company_id=company_id)
     db.session.add(department)
     db.session.commit()
-    
+
     return jsonify({'message': 'Department created successfully', 'department': {'id': department.id, 'name': department.name}}), 201
 
 @bp.route('/departments', methods=['GET'])
 def list_departments():
-    departments = Department.query.filter_by(is_deleted=False).all()
+    company_id = request.args.get('company_id', type=int)
+
+    query = Department.query.filter_by(is_deleted=False)
+    if company_id:
+        query = query.filter_by(company_id=company_id)
+
+    departments = query.all()
     dep_list = []
-    
+
     for dep in departments:
         members = User.query.filter_by(department_id=dep.id).all()
         dep_data = {
@@ -283,7 +323,7 @@ def list_departments():
             'employees': [{'id': u.id, 'username': u.username} for u in members if u.role == 'employee']
         }
         dep_list.append(dep_data)
-        
+
     return jsonify(dep_list), 200
 
 @bp.route('/departments/<int:id>/assign', methods=['PUT'])
@@ -351,8 +391,6 @@ def get_user_projects():
 
 @bp.route('/tasks', methods=['GET'])
 def get_tasks():
-    # In a full app with auth, you'd get user_id and role from JWT/session.
-    # For now, we simulate by passing user_id and role as query params.
     user_id = request.args.get('user_id', type=int)
     role = request.args.get('role')
     project_id = request.args.get('project_id', type=int)
@@ -365,6 +403,32 @@ def get_tasks():
     user = User.query.get(user_id)
     if not user:
         return jsonify({'message': 'User not found'}), 404
+
+    # Individual users only see their own tasks (no company tasks)
+    if user.user_type == 'individual':
+        tasks = Task.query.filter_by(is_deleted=False).filter(
+            (Task.assigned_to == user.id) | (Task.created_by == user.id)
+        ).all()
+        task_list = []
+        for t in tasks:
+            task_list.append({
+                'id': t.id,
+                'title': t.title,
+                'description': t.description,
+                'status': t.status,
+                'deadline': t.deadline.isoformat() if t.deadline else None,
+                'start_time': t.start_time.isoformat() if t.start_time else None,
+                'is_daily_task': t.is_daily_task,
+                'created_on': t.created_on.isoformat() if t.created_on else None,
+                'assigned_to': {'id': t.assignee.id, 'username': t.assignee.username} if t.assignee else None,
+                'created_by': {'id': t.creator.id, 'username': t.creator.username} if t.creator else None,
+                'priority': t.priority or 'medium',
+                'project_id': t.project_id,
+                'tags': [x.strip() for x in t.tags.split(',') if x.strip()] if t.tags else [],
+                'co_assignees': [],
+                'image_attachment': t.image_attachment,
+            })
+        return jsonify(task_list), 200
 
     query = Task.query.filter_by(is_deleted=False)
     if project_id:
@@ -955,24 +1019,55 @@ def remove_project_member(proj_id, user_id):
 
 @bp.route('/stats/manager-dashboard', methods=['GET'])
 def get_manager_dashboard_stats():
-    """Comprehensive manager dashboard stats endpoint."""
+    """Comprehensive manager dashboard stats scoped to a company."""
+    company_id = request.args.get('company_id', type=int)
+
+    def user_q():
+        q = User.query.filter_by(is_active=True)
+        if company_id:
+            q = q.filter_by(company_id=company_id)
+        return q
+
+    def dept_q():
+        q = Department.query.filter_by(is_deleted=False)
+        if company_id:
+            q = q.filter_by(company_id=company_id)
+        return q
+
+    company_user_ids = [u.id for u in user_q().all()] if company_id else None
+
+    def task_q():
+        q = Task.query.filter_by(is_deleted=False)
+        if company_user_ids is not None:
+            q = q.filter(
+                Task.assigned_to.in_(company_user_ids) |
+                Task.created_by.in_(company_user_ids)
+            )
+        return q
+
     # Basic counts
-    total_users = User.query.filter_by(is_active=True).count()
-    total_departments = Department.query.filter_by(is_deleted=False).count()
+    total_users = user_q().count()
+    total_departments = dept_q().count()
     total_projects = Project.query.filter_by(is_deleted=False).count()
 
     # Task counts
-    task_todo = Task.query.filter_by(status='To Do', is_deleted=False).count()
-    task_inprogress = Task.query.filter_by(status='In Progress', is_deleted=False).count()
-    task_completed = Task.query.filter_by(status='Completed', is_deleted=False).count()
+    task_todo = task_q().filter_by(status='To Do').count()
+    task_inprogress = task_q().filter_by(status='In Progress').count()
+    task_completed = task_q().filter_by(status='Completed').count()
     total_tasks = task_todo + task_inprogress + task_completed
 
-    # Expense stats
-    total_expense_paid = db.session.query(db.func.sum(Expense.amount)).filter_by(payment_status='Paid').scalar() or 0
-    pending_expenses = Expense.query.filter_by(is_rejected=False).filter(Expense.payment_status != 'Paid').count()
+    # Expense stats (scoped to company users)
+    expense_q = Expense.query
+    if company_user_ids is not None:
+        expense_q = expense_q.filter(Expense.created_by_id.in_(company_user_ids))
+    total_expense_paid = db.session.query(db.func.sum(Expense.amount)).filter(
+        Expense.payment_status == 'Paid',
+        *([Expense.created_by_id.in_(company_user_ids)] if company_user_ids is not None else [])
+    ).scalar() or 0
+    pending_expenses = expense_q.filter_by(is_rejected=False).filter(Expense.payment_status != 'Paid').count()
 
-    # Employee performance (tasks per employee/supervisor)
-    workers = User.query.filter_by(is_active=True).filter(
+    # Employee performance
+    workers = user_q().filter(
         User.role.in_(['employee', 'supervisor'])
     ).all()
     performance_data = []

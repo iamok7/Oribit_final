@@ -25,7 +25,18 @@
       "Bash(venv/Scripts/python -c \"import sys; sys.path.insert\\(0, ''.''\\); from app import create_app; app = create_app\\(\\)\")",
       "Bash(\"venv/Scripts/python.exe\" -c \"import sys; sys.path.insert\\(0, ''.''\\); from app import create_app; app = create_app\\(\\)\")",
       "Bash(python:*)",
-      "Bash(find C:UsersomkarDesktopswstkTSOtsomobilesrc -type f \\\\\\(-name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx \\\\\\))"
+      "Bash(find C:UsersomkarDesktopswstkTSOtsomobilesrc -type f \\\\\\(-name *.js -o -name *.jsx -o -name *.ts -o -name *.tsx \\\\\\))",
+      "Bash(chmod 400 /c/Users/omkar/Downloads/taskorbit.pem)",
+      "Bash(ssh:*)",
+      "Bash(nslookup taskorbit.nexvitech.in)",
+      "Bash(nslookup:*)",
+      "Bash(grep -rn \"localhost\\\\|API\\\\|baseURL\\\\|http\" /c/Users/omkar/Desktop/swstk/TSO/tso/tso-mobile --include=*.js --include=*.ts --include=*.jsx --include=*.tsx -l)",
+      "Bash(grep -rn \"localhost\\\\|API\\\\|baseURL\\\\|http\" /c/Users/omkar/Desktop/swstk/TSO/tso/mobile_app --include=*.js --include=*.ts --include=*.jsx --include=*.tsx -l)",
+      "Bash(xargs grep:*)",
+      "Bash(eas init:*)",
+      "Bash(eas build:*)",
+      "Bash(scp:*)",
+      "Bash(grep -r \"^revision\" /c/Users/omkar/Desktop/swstk/TSO/tso/backend/migrations/versions/*.py)"
     ]
   }
 }
