@@ -238,7 +238,15 @@ def delete_account():
         db.session.execute(project_members.delete().where(
             project_members.c.user_id == user_id))
 
-        # Remove group chat memberships
+        # Delete group chats created by user (messages + members first, then the chat)
+        created_group_ids = [g.id for g in GroupChat.query.filter_by(created_by=user_id).all()]
+        if created_group_ids:
+            Message.query.filter(Message.group_id.in_(created_group_ids)).delete(synchronize_session=False)
+            db.session.execute(group_chat_members.delete().where(
+                group_chat_members.c.group_chat_id.in_(created_group_ids)))
+            GroupChat.query.filter(GroupChat.id.in_(created_group_ids)).delete(synchronize_session=False)
+
+        # Remove user from group chats they're a member of (but didn't create)
         db.session.execute(group_chat_members.delete().where(
             group_chat_members.c.user_id == user_id))
 
