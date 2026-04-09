@@ -8,6 +8,11 @@ import {
   Alert,
   Switch,
   StatusBar,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -15,7 +20,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuth } from '../context/AuthContext';
-import { getTasks } from '../services/api';
+import { getTasks, deleteAccountAPI } from '../services/api';
 
 // ─── Liquid Glass High Contrast Palette ──────────────────────────────────────
 const G = {
@@ -87,6 +92,9 @@ export default function ProfileScreen({ navigation }) {
   const [stats, setStats] = useState({ completed: 0, pending: 0, total: 0 });
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -116,6 +124,24 @@ export default function ProfileScreen({ navigation }) {
         },
       ]
     );
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText.trim().toLowerCase() !== 'delete') {
+      Alert.alert('Error', 'Please type "delete" to confirm account deletion.');
+      return;
+    }
+    setIsDeleting(true);
+    try {
+      await deleteAccountAPI(user?.id, deleteConfirmText.trim().toLowerCase());
+      setShowDeleteModal(false);
+      setDeleteConfirmText('');
+      await logout();
+    } catch (err) {
+      Alert.alert('Error', err.message || 'Failed to delete account. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const roleConfig = ROLE_CONFIG[user?.role] || ROLE_CONFIG.employee;
@@ -320,13 +346,95 @@ export default function ProfileScreen({ navigation }) {
             <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
             <LinearGradient colors={['rgba(254,226,226,0.9)', 'rgba(254,226,226,0.5)']} style={StyleSheet.absoluteFill} />
             <View style={styles.glassHighlight} />
-            
+
             <Ionicons name="log-out" size={20} color={G.red} />
             <Text style={styles.logoutText}>Sign Out</Text>
           </View>
         </TouchableOpacity>
 
+        {/* ── Delete Account Button ── */}
+        <TouchableOpacity
+          style={[styles.shadowWrap, { marginTop: 12, marginBottom: 8 }]}
+          onPress={() => { setDeleteConfirmText(''); setShowDeleteModal(true); }}
+          activeOpacity={0.8}
+        >
+          <View style={[styles.glassLight, styles.deleteAccountBtn]}>
+            <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+            <LinearGradient colors={['rgba(254,226,226,0.5)', 'rgba(254,226,226,0.2)']} style={StyleSheet.absoluteFill} />
+            <View style={styles.glassHighlight} />
+            <Ionicons name="trash" size={18} color={G.red} />
+            <Text style={styles.deleteAccountText}>Delete Account</Text>
+          </View>
+        </TouchableOpacity>
+
       </ScrollView>
+
+      {/* ── Delete Account Modal ── */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => { if (!isDeleting) { setShowDeleteModal(false); setDeleteConfirmText(''); } }}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={styles.modalCard}>
+            <View style={[styles.modalIconWrap, { backgroundColor: G.redBg }]}>
+              <Ionicons name="warning" size={28} color={G.red} />
+            </View>
+
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalBody}>
+              This action is permanent and cannot be undone. All your tasks, data, and account information will be erased.
+            </Text>
+            <Text style={styles.modalBody}>
+              Type <Text style={{ fontWeight: '900', color: G.red }}>"delete"</Text> below to confirm.
+            </Text>
+
+            <TextInput
+              style={styles.modalInput}
+              placeholder='Type "delete" to confirm'
+              placeholderTextColor={G.txtFaint}
+              value={deleteConfirmText}
+              onChangeText={setDeleteConfirmText}
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!isDeleting}
+              selectionColor={G.red}
+            />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => { setShowDeleteModal(false); setDeleteConfirmText(''); }}
+                disabled={isDeleting}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.modalDeleteBtn,
+                  deleteConfirmText.trim().toLowerCase() !== 'delete' && styles.modalDeleteBtnDisabled,
+                ]}
+                onPress={handleDeleteAccount}
+                disabled={isDeleting || deleteConfirmText.trim().toLowerCase() !== 'delete'}
+                activeOpacity={0.8}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color={G.white} />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Delete My Account</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
     </View>
   );
 }
@@ -398,4 +506,26 @@ const styles = StyleSheet.create({
   // ── Logout Button
   logoutBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 16, gap: 8, borderColor: '#FCA5A5' },
   logoutText: { fontSize: 16, fontWeight: '900', color: G.red, letterSpacing: 0.5 },
+
+  // ── Delete Account Button
+  deleteAccountBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 14, gap: 8, borderColor: '#FCA5A5' },
+  deleteAccountText: { fontSize: 14, fontWeight: '800', color: G.red, letterSpacing: 0.3 },
+
+  // ── Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.55)', justifyContent: 'center', alignItems: 'center', paddingHorizontal: 24 },
+  modalCard: { width: '100%', backgroundColor: G.white, borderRadius: 28, padding: 24, alignItems: 'center', shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 20, shadowOffset: { width: 0, height: 8 }, elevation: 16 },
+  modalIconWrap: { width: 60, height: 60, borderRadius: 30, alignItems: 'center', justifyContent: 'center', marginBottom: 16 },
+  modalTitle: { fontSize: 22, fontWeight: '900', color: G.txtMain, marginBottom: 10, textAlign: 'center' },
+  modalBody: { fontSize: 14, color: G.txtFaint, fontWeight: '600', textAlign: 'center', lineHeight: 20, marginBottom: 8 },
+  modalInput: {
+    width: '100%', height: 48, borderRadius: 14, borderWidth: 2, borderColor: '#FCA5A5',
+    paddingHorizontal: 14, fontSize: 15, fontWeight: '700', color: G.txtMain,
+    backgroundColor: G.redBg, marginTop: 12, marginBottom: 20,
+  },
+  modalActions: { flexDirection: 'row', gap: 12, width: '100%' },
+  modalCancelBtn: { flex: 1, height: 48, borderRadius: 14, borderWidth: 2, borderColor: G.p200, alignItems: 'center', justifyContent: 'center', backgroundColor: G.white },
+  modalCancelText: { fontSize: 15, fontWeight: '800', color: G.txtFaint },
+  modalDeleteBtn: { flex: 1, height: 48, borderRadius: 14, backgroundColor: G.red, alignItems: 'center', justifyContent: 'center' },
+  modalDeleteBtnDisabled: { opacity: 0.4 },
+  modalDeleteText: { fontSize: 15, fontWeight: '900', color: G.white },
 });

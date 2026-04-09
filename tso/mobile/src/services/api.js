@@ -97,6 +97,10 @@ export const signupAPI = async (data) => {
   }
 };
 
+export const deleteAccountAPI = async (userId, confirmation) => {
+  return request('DELETE', '/auth/delete_account', { user_id: userId, confirmation });
+};
+
 export const validateCompanyCodeAPI = async (code) => {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 8000);

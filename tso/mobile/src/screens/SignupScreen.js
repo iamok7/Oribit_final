@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -18,7 +18,6 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 
 import { useAuth } from '../context/AuthContext';
-import { validateCompanyCodeAPI } from '../services/api';
 
 const G = {
   bgLight:  '#F0F6FF',
@@ -49,50 +48,15 @@ const liquidShadow = {
 };
 
 export default function SignupScreen({ navigation }) {
-  const [userType, setUserType] = useState('individual'); // 'individual' | 'company_member'
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [companyCode, setCompanyCode] = useState('');
-  const [companyName, setCompanyName] = useState('');
-  const [isValidatingCode, setIsValidatingCode] = useState(false);
-  const [codeValid, setCodeValid] = useState(null); // null | true | false
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signup } = useAuth();
   const insets = useSafeAreaInsets();
-  const codeTimer = useRef(null);
-
-  const handleCompanyCodeChange = (text) => {
-    const code = text.toUpperCase().replace(/[^A-Z0-9]/g, '');
-    setCompanyCode(code);
-    setCodeValid(null);
-    setCompanyName('');
-    if (codeTimer.current) clearTimeout(codeTimer.current);
-    if (code.length >= 6) {
-      codeTimer.current = setTimeout(() => validateCode(code), 700);
-    }
-  };
-
-  const validateCode = async (code) => {
-    setIsValidatingCode(true);
-    try {
-      const res = await validateCompanyCodeAPI(code);
-      if (res.valid) {
-        setCodeValid(true);
-        setCompanyName(res.company_name);
-      } else {
-        setCodeValid(false);
-        setCompanyName('');
-      }
-    } catch {
-      setCodeValid(false);
-    } finally {
-      setIsValidatingCode(false);
-    }
-  };
 
   const handleSignup = async () => {
     if (!firstName.trim()) return Alert.alert('Error', 'First name is required');
@@ -101,19 +65,13 @@ export default function SignupScreen({ navigation }) {
     if (password.length < 6) return Alert.alert('Error', 'Password must be at least 6 characters');
     if (password !== confirmPassword) return Alert.alert('Error', 'Passwords do not match');
 
-    if (userType === 'company_member') {
-      if (!companyCode.trim()) return Alert.alert('Error', 'Enter your company code');
-      if (codeValid !== true) return Alert.alert('Error', 'Invalid company code. Please verify with your manager.');
-    }
-
     setIsSubmitting(true);
     const result = await signup({
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       email: email.trim().toLowerCase(),
       password,
-      user_type: userType,
-      company_code: userType === 'company_member' ? companyCode.trim() : undefined,
+      user_type: 'individual',
     });
     setIsSubmitting(false);
 
@@ -121,24 +79,6 @@ export default function SignupScreen({ navigation }) {
       Alert.alert('Sign Up Failed', result.error || 'Please try again.');
     }
     // On success, AuthContext updates user → AppNavigator routes to Main automatically
-  };
-
-  const CodeStatus = () => {
-    if (!companyCode || companyCode.length < 6) return null;
-    if (isValidatingCode) return <ActivityIndicator size="small" color={G.p600} style={{ marginTop: 6 }} />;
-    if (codeValid === true) return (
-      <View style={styles.codeValid}>
-        <Ionicons name="checkmark-circle" size={16} color={G.green} />
-        <Text style={[styles.codeStatusText, { color: G.green }]}>{companyName}</Text>
-      </View>
-    );
-    if (codeValid === false) return (
-      <View style={styles.codeValid}>
-        <Ionicons name="close-circle" size={16} color={G.red} />
-        <Text style={[styles.codeStatusText, { color: G.red }]}>Invalid code</Text>
-      </View>
-    );
-    return null;
   };
 
   return (
@@ -174,41 +114,13 @@ export default function SignupScreen({ navigation }) {
               <Text style={styles.logoText}>TSO</Text>
             </View>
             <Text style={styles.welcomeTitle}>Create Account</Text>
-            <Text style={styles.welcomeSubtitle}>Join as individual or with a company</Text>
-          </View>
-
-          {/* Account type toggle */}
-          <View style={styles.toggleContainer}>
-            <TouchableOpacity
-              style={[styles.toggleBtn, userType === 'individual' && styles.toggleBtnActive]}
-              onPress={() => { setUserType('individual'); setCodeValid(null); setCompanyName(''); }}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="person" size={16} color={userType === 'individual' ? G.white : G.txtFaint} />
-              <Text style={[styles.toggleText, userType === 'individual' && styles.toggleTextActive]}>Individual</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.toggleBtn, userType === 'company_member' && styles.toggleBtnActive]}
-              onPress={() => setUserType('company_member')}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="business" size={16} color={userType === 'company_member' ? G.white : G.txtFaint} />
-              <Text style={[styles.toggleText, userType === 'company_member' && styles.toggleTextActive]}>Company</Text>
-            </TouchableOpacity>
+            <Text style={styles.welcomeSubtitle}>Your personal task manager</Text>
           </View>
 
           {/* Info banner */}
           <View style={styles.infoBanner}>
-            <Ionicons
-              name={userType === 'individual' ? 'person-circle-outline' : 'business-outline'}
-              size={18}
-              color={G.p700}
-            />
-            <Text style={styles.infoText}>
-              {userType === 'individual'
-                ? 'Use TaskOrbit as a personal task manager. Your tasks are private.'
-                : 'Enter your company code to join your team. Ask your manager for the code.'}
-            </Text>
+            <Ionicons name="person-circle-outline" size={18} color={G.p700} />
+            <Text style={styles.infoText}>Use TaskOrbit as a personal task manager. Your tasks are private.</Text>
           </View>
 
           {/* Form */}
@@ -322,36 +234,6 @@ export default function SignupScreen({ navigation }) {
                     />
                   </View>
                 </View>
-
-                {/* Company code (only for company_member) */}
-                {userType === 'company_member' && (
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.inputLabel}>Company Code</Text>
-                    <View style={[
-                      styles.inputWrapper,
-                      codeValid === true && styles.inputWrapperValid,
-                      codeValid === false && styles.inputWrapperError,
-                    ]}>
-                      <View style={styles.inputIconContainer}>
-                        <Ionicons name="key" size={18} color={G.p700} />
-                      </View>
-                      <TextInput
-                        style={styles.input}
-                        placeholder="e.g. ACME2024"
-                        placeholderTextColor={G.txtFaint}
-                        value={companyCode}
-                        onChangeText={handleCompanyCodeChange}
-                        autoCapitalize="characters"
-                        autoCorrect={false}
-                        maxLength={12}
-                        editable={!isSubmitting}
-                        selectionColor={G.p600}
-                      />
-                    </View>
-                    <CodeStatus />
-                    <Text style={styles.hintText}>Ask your manager for the company code</Text>
-                  </View>
-                )}
 
                 {/* Submit */}
                 <TouchableOpacity

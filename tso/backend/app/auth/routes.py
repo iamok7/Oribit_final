@@ -207,3 +207,89 @@ def create_company():
 def list_companies():
     companies = Company.query.all()
     return jsonify([{'id': c.id, 'name': c.name, 'company_code': c.company_code} for c in companies]), 200
+
+
+@bp.route('/delete_account', methods=['DELETE'])
+def delete_account():
+    data = request.get_json()
+    if not data:
+        return jsonify({'message': 'No data provided'}), 400
+
+    user_id = data.get('user_id')
+    confirmation = data.get('confirmation', '').strip().lower()
+
+    if not user_id:
+        return jsonify({'message': 'user_id is required'}), 400
+
+    if confirmation != 'delete':
+        return jsonify({'message': 'Confirmation text must be exactly "delete"'}), 400
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'message': 'User not found'}), 404
+
+    from app.models import (Task, Comment, Notification, TypingIndicator,
+                            Message, Conversation, GroupChat, Requirement,
+                            RequirementComment, Expense, Issue, Subtask,
+                            project_members, group_chat_members)
+
+    try:
+        # Remove project memberships
+        db.session.execute(project_members.delete().where(
+            project_members.c.user_id == user_id))
+
+        # Remove group chat memberships
+        db.session.execute(group_chat_members.delete().where(
+            group_chat_members.c.user_id == user_id))
+
+        # Delete typing indicators
+        TypingIndicator.query.filter_by(user_id=user_id).delete()
+
+        # Delete notifications for this user
+        Notification.query.filter_by(user_id=user_id).delete()
+
+        # Delete messages sent by user
+        Message.query.filter_by(sender_id=user_id).delete()
+
+        # Delete conversations where user is a participant
+        conv_ids = [c.id for c in Conversation.query.filter(
+            (Conversation.user1_id == user_id) | (Conversation.user2_id == user_id)
+        ).all()]
+        if conv_ids:
+            Message.query.filter(Message.conversation_id.in_(conv_ids)).delete(synchronize_session=False)
+            Conversation.query.filter(Conversation.id.in_(conv_ids)).delete(synchronize_session=False)
+
+        # Delete requirement comments by user
+        RequirementComment.query.filter_by(author_id=user_id).delete()
+
+        # Delete requirements posted by user (and their comments)
+        req_ids = [r.id for r in Requirement.query.filter_by(posted_by_id=user_id).all()]
+        if req_ids:
+            RequirementComment.query.filter(RequirementComment.requirement_id.in_(req_ids)).delete(synchronize_session=False)
+            Requirement.query.filter(Requirement.id.in_(req_ids)).delete(synchronize_session=False)
+
+        # Delete expenses created by user
+        Expense.query.filter_by(created_by_id=user_id).delete()
+
+        # Delete task comments by user
+        Comment.query.filter_by(user_id=user_id).delete()
+
+        # Delete issues created by user
+        Issue.query.filter_by(created_by=user_id).delete()
+
+        # Nullify tasks assigned to user
+        Task.query.filter_by(assigned_to=user_id).update({'assigned_to': None})
+
+        # Delete tasks created by user (cascades to subtasks, issues, comments)
+        created_task_ids = [t.id for t in Task.query.filter_by(created_by=user_id).all()]
+        if created_task_ids:
+            for task in Task.query.filter(Task.id.in_(created_task_ids)).all():
+                db.session.delete(task)
+
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({'message': 'Account deleted successfully'}), 200
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'message': f'Failed to delete account: {str(e)}'}), 500
