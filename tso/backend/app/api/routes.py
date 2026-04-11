@@ -1029,6 +1029,18 @@ def get_manager_dashboard_stats():
     """Comprehensive manager dashboard stats scoped to a company."""
     company_id = request.args.get('company_id', type=int)
 
+    # Fallback: resolve company_id from Authorization header (username token)
+    # so managers whose cached session has user_type='individual' still get
+    # the right scoped dashboard without needing to log out.
+    if not company_id:
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:].strip()
+            caller = (User.query.filter_by(username=token).first()
+                      or User.query.filter_by(email=token.lower()).first())
+            if caller and caller.company_id:
+                company_id = caller.company_id
+
     def user_q():
         q = User.query.filter_by(is_active=True)
         if company_id:

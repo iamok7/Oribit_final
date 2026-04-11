@@ -146,8 +146,18 @@ def create_user():
     if User.query.filter_by(username=data['username']).first():
         return jsonify({'message': 'User already exists with this ID'}), 400
 
-    # Allow passing company_id when creating company users
+    # Resolve company_id: prefer explicit value in body, then fall back to
+    # the calling manager's company derived from the Authorization header.
     company_id = data.get('company_id')
+    if not company_id:
+        auth_header = request.headers.get('Authorization', '')
+        if auth_header.startswith('Bearer '):
+            token = auth_header[7:].strip()
+            # Token is the manager's username (set at login/signup in the mobile app)
+            caller = (User.query.filter_by(username=token).first()
+                      or User.query.filter_by(email=token.lower()).first())
+            if caller and caller.company_id:
+                company_id = caller.company_id
 
     user = User(
         username=data['username'],
