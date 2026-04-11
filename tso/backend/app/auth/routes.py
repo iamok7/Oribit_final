@@ -45,7 +45,9 @@ def signup():
         company_id = company.id
         company_name = company.name
     else:
-        # Individual signup: auto-create a private workspace company and grant manager access
+        # Individual signup: auto-create a private workspace company and grant manager access.
+        # Store as company_member so the mobile app uses role-based UI (manager) instead of
+        # the restricted individual UI.
         ws_name = f"{data['first_name'].strip()}'s Workspace"
         code = generate_company_code()
         while Company.query.filter_by(company_code=code).first():
@@ -56,6 +58,7 @@ def signup():
         company_id = new_company.id
         company_name = new_company.name
         role = 'manager'
+        user_type = 'company_member'
 
     user = User(
         username=username,
