@@ -10,7 +10,7 @@ def signup():
     if not data:
         return jsonify({'message': 'No data provided'}), 400
 
-    required = ['first_name', 'last_name', 'email', 'password', 'user_type']
+    required = ['email', 'password', 'user_type']
     for field in required:
         if not data.get(field, '').strip():
             return jsonify({'message': f'{field} is required'}), 400
@@ -23,8 +23,17 @@ def signup():
     if User.query.filter_by(email=email).first():
         return jsonify({'message': 'An account with this email already exists'}), 400
 
+    # Derive first/last name from email when not provided (individual signup)
+    local_part = email.split('@')[0]                  # e.g. "john.doe" or "johndoe"
+    name_parts = local_part.replace('.', ' ').replace('_', ' ').replace('-', ' ').split()
+    derived_first = name_parts[0].capitalize() if name_parts else local_part.capitalize()
+    derived_last  = name_parts[1].capitalize() if len(name_parts) > 1 else ''
+
+    first_name = data.get('first_name', '').strip() or derived_first
+    last_name  = data.get('last_name',  '').strip() or derived_last
+
     # Build username from email (unique fallback)
-    base_username = email.split('@')[0]
+    base_username = local_part
     username = base_username
     suffix = 1
     while User.query.filter_by(username=username).first():
@@ -63,8 +72,8 @@ def signup():
     user = User(
         username=username,
         email=email,
-        first_name=data['first_name'].strip(),
-        last_name=data['last_name'].strip(),
+        first_name=first_name,
+        last_name=last_name,
         role=role,
         user_type=user_type,
         company_id=company_id,
@@ -165,11 +174,11 @@ def login():
     if not data or not 'username' in data or not 'password' in data:
         return jsonify({'message': 'Must include username and password'}), 400
 
-    # Allow login by email or username
+    # Allow login by email or username (case-insensitive email match)
     identifier = data['username'].strip()
-    user = User.query.filter_by(username=identifier).first()
-    if not user:
-        user = User.query.filter_by(email=identifier.lower()).first()
+    user = (User.query.filter_by(username=identifier).first()
+            or User.query.filter_by(username=identifier.lower()).first()
+            or User.query.filter_by(email=identifier.lower()).first())
 
     if user is None or not user.check_password(data['password']):
         return jsonify({'message': 'Invalid username or password'}), 401
