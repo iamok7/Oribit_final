@@ -33,6 +33,7 @@ def signup():
 
     company_id = None
     company_name = None
+    role = 'employee'
 
     if user_type == 'company_member':
         company_code = data.get('company_code', '').strip().upper()
@@ -43,19 +44,36 @@ def signup():
             return jsonify({'message': 'Invalid company code. Please check and try again.'}), 404
         company_id = company.id
         company_name = company.name
+    else:
+        # Individual signup: auto-create a private workspace company and grant manager access
+        ws_name = f"{data['first_name'].strip()}'s Workspace"
+        code = generate_company_code()
+        while Company.query.filter_by(company_code=code).first():
+            code = generate_company_code()
+        new_company = Company(name=ws_name, company_code=code)
+        db.session.add(new_company)
+        db.session.flush()  # get id before commit
+        company_id = new_company.id
+        company_name = new_company.name
+        role = 'manager'
 
     user = User(
         username=username,
         email=email,
         first_name=data['first_name'].strip(),
         last_name=data['last_name'].strip(),
-        role='employee',
+        role=role,
         user_type=user_type,
         company_id=company_id,
     )
     user.set_password(data['password'])
     db.session.add(user)
     db.session.commit()
+
+    company_code_out = None
+    if user.company_id:
+        c = Company.query.get(user.company_id)
+        company_code_out = c.company_code if c else None
 
     return jsonify({
         'message': 'Account created successfully',
@@ -69,6 +87,7 @@ def signup():
             'user_type': user.user_type,
             'company_id': user.company_id,
             'company_name': company_name,
+            'company_code': company_code_out,
             'department_id': user.department_id,
         }
     }), 201

@@ -64,6 +64,12 @@ def list_requirements():
     query = Requirement.query
 
     if role == 'manager':
+        # Scope to the manager's company: filter by poster being in the same company
+        if user_id:
+            mgr = User.query.get(user_id)
+            if mgr and mgr.company_id:
+                co_ids = [u.id for u in User.query.filter_by(company_id=mgr.company_id, is_active=True).all()]
+                query = query.filter(Requirement.posted_by_id.in_(co_ids))
         if dept_id:
             query = query.filter_by(dept_id=dept_id)
     elif role == 'supervisor':

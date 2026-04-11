@@ -43,14 +43,21 @@ def get_expenses():
     if not user:
         return jsonify({'message': 'User not found'}), 404
         
+    def _co_ids(u):
+        if u.company_id is None:
+            return [u.id]
+        return [x.id for x in User.query.filter_by(company_id=u.company_id, is_active=True).all()]
+
     query = Expense.query
-    
+
     if role == 'finance':
-        # Finance sees all expenses immediately when raised
-        pass
+        # Finance sees all expenses for their company
+        co_ids = _co_ids(user)
+        query = query.filter(Expense.created_by_id.in_(co_ids))
     elif role == 'manager':
-        # Manager sees all expenses
-        pass
+        # Manager sees all expenses for their company
+        co_ids = _co_ids(user)
+        query = query.filter(Expense.created_by_id.in_(co_ids))
     elif role == 'supervisor':
         # Supervisor sees their department's expenses
         if user.department_id is None:

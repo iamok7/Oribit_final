@@ -2,7 +2,7 @@
   "expo": {
     "name": "TaskOrbit",
     "slug": "taskorbit",
-    "version": "1.2.0",
+    "version": "1.2.2",
     "orientation": "portrait",
     "icon": "./src/assets/logo.png",
     "userInterfaceStyle": "light",
@@ -15,9 +15,10 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.nexvitech.taskorbit",
-      "buildNumber": "4",
+      "buildNumber": "5",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "TaskOrbit would like access to your photo library so you can attach images to your tasks — for example, uploading a progress photo to show the current status of an ongoing task or sharing a visual update with your team."
       }
     },
     "android": {
@@ -27,6 +28,14 @@
       },
       "package": "com.nexvitech.taskorbit"
     },
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "TaskOrbit would like access to your photo library so you can attach images to your tasks — for example, uploading a progress photo to show the current status of an ongoing task or sharing a visual update with your team."
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "9800dce3-e1cb-4977-9068-e3928bba0e2d"

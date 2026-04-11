@@ -14,6 +14,14 @@ def _notify(user_id, ntype, title, body, ref_id=None, ref_type=None):
     db.session.add(n)
 
 
+def _company_user_ids(user):
+    """Return IDs of all active users in the same company as *user*.
+    Falls back to [user.id] only if the user has no company (legacy rows)."""
+    if user.company_id is None:
+        return [user.id]
+    return [u.id for u in User.query.filter_by(company_id=user.company_id, is_active=True).all()]
+
+
 def _resolve_co_assignees(co_assignees_str):
     if not co_assignees_str:
         return []
@@ -206,16 +214,24 @@ def deactivate_user(user_id):
 def get_recent_activity():
     """Return recent task activity: tasks in 'In Progress' or 'Completed' with assignee info."""
     limit = int(request.args.get('limit', 20))
+    req_user_id = request.args.get('user_id', type=int)
+
+    task_query = Task.query.filter(
+        Task.is_deleted == False, Task.assigned_to != None,
+        Task.status.in_(['In Progress', 'Completed', 'To Do'])
+    )
+
+    # Scope to requesting user's company when provided
+    if req_user_id:
+        req_user = User.query.get(req_user_id)
+        if req_user:
+            co_ids = _company_user_ids(req_user)
+            task_query = task_query.filter(
+                Task.assigned_to.in_(co_ids) | Task.created_by.in_(co_ids)
+            )
 
     # Get tasks in active statuses, sorted by most recently created
-    tasks = (
-        Task.query
-        .filter(Task.is_deleted == False, Task.assigned_to != None,
-                Task.status.in_(['In Progress', 'Completed', 'To Do']))
-        .order_by(Task.created_on.desc())
-        .limit(limit * 3)
-        .all()
-    )
+    tasks = task_query.order_by(Task.created_on.desc()).limit(limit * 3).all()
 
     activity = []
     seen = set()
@@ -271,10 +287,17 @@ def get_employee_stats():
     if unassigned > 0:
         dept_dist.append({'name': 'Unassigned', 'count': unassigned})
 
-    # Task status breakdown across all employees
+    # Task status breakdown scoped to the same company
     task_status = {}
-    for status in ['To Do', 'In Progress', 'Completed']:
-        task_status[status] = Task.query.filter_by(status=status, is_deleted=False).count()
+    if company_id:
+        co_task_ids = [u.id for u in User.query.filter_by(company_id=company_id, is_active=True).all()]
+        for status in ['To Do', 'In Progress', 'Completed']:
+            task_status[status] = Task.query.filter_by(status=status, is_deleted=False).filter(
+                Task.created_by.in_(co_task_ids) | Task.assigned_to.in_(co_task_ids)
+            ).count()
+    else:
+        for status in ['To Do', 'In Progress', 'Completed']:
+            task_status[status] = Task.query.filter_by(status=status, is_deleted=False).count()
 
     return jsonify({
         'total': len(users),
@@ -369,7 +392,11 @@ def get_user_projects():
     query = Project.query.filter_by(is_deleted=False)
     
     if role == 'manager':
-        projects = query.all()
+        if user.company_id:
+            dept_ids = [d.id for d in Department.query.filter_by(company_id=user.company_id, is_deleted=False).all()]
+            projects = query.filter(Project.department_id.in_(dept_ids)).all() if dept_ids else []
+        else:
+            projects = []
     elif role == 'supervisor':
         projects = query.filter_by(department_id=user.department_id).all()
     else: # employee
@@ -404,32 +431,6 @@ def get_tasks():
     if not user:
         return jsonify({'message': 'User not found'}), 404
 
-    # Individual users only see their own tasks (no company tasks)
-    if user.user_type == 'individual':
-        tasks = Task.query.filter_by(is_deleted=False).filter(
-            (Task.assigned_to == user.id) | (Task.created_by == user.id)
-        ).all()
-        task_list = []
-        for t in tasks:
-            task_list.append({
-                'id': t.id,
-                'title': t.title,
-                'description': t.description,
-                'status': t.status,
-                'deadline': t.deadline.isoformat() if t.deadline else None,
-                'start_time': t.start_time.isoformat() if t.start_time else None,
-                'is_daily_task': t.is_daily_task,
-                'created_on': t.created_on.isoformat() if t.created_on else None,
-                'assigned_to': {'id': t.assignee.id, 'username': t.assignee.username} if t.assignee else None,
-                'created_by': {'id': t.creator.id, 'username': t.creator.username} if t.creator else None,
-                'priority': t.priority or 'medium',
-                'project_id': t.project_id,
-                'tags': [x.strip() for x in t.tags.split(',') if x.strip()] if t.tags else [],
-                'co_assignees': [],
-                'image_attachment': t.image_attachment,
-            })
-        return jsonify(task_list), 200
-
     query = Task.query.filter_by(is_deleted=False)
     if project_id:
         query = query.filter_by(project_id=project_id)
@@ -459,8 +460,11 @@ def get_tasks():
             Task.project_id.in_(dept_project_ids)
         ).all()
     elif role == 'manager':
-        # Manager sees all tasks matching query
-        tasks = query.all()
+        # Manager sees all tasks belonging to users in the same company
+        co_ids = _company_user_ids(user)
+        tasks = query.filter(
+            Task.created_by.in_(co_ids) | Task.assigned_to.in_(co_ids)
+        ).all()
     elif role == 'supervisor':
         # Supervisor sees tasks assigned to users in their department OR tasks in projects under their dept
         dept_users = User.query.filter_by(department_id=user.department_id).all()
@@ -700,9 +704,12 @@ def update_task(task_id):
                 ref_id=task.id, ref_type='task',
             )
             notified.add(task.created_by)
-        # Notify all managers if changer is employee or supervisor
+        # Notify managers in the same company if changer is employee or supervisor
         if user and user.role in ('employee', 'supervisor'):
-            managers = User.query.filter_by(role='manager', is_active=True).all()
+            mgr_query = User.query.filter_by(role='manager', is_active=True)
+            if user.company_id:
+                mgr_query = mgr_query.filter_by(company_id=user.company_id)
+            managers = mgr_query.all()
             for mgr in managers:
                 if mgr.id != user_id and mgr.id not in notified:
                     _notify(
