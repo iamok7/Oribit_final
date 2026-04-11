@@ -164,7 +164,8 @@ function MoreTabButton({ navigation, role, userType }) {
     ],
   };
 
-  const actionKey = role || 'employee';
+  // Individual users use their own action set regardless of role
+  const actionKey = userType === 'individual' ? 'individual' : (role || 'employee');
   const actions = ACTIONS[actionKey] || ACTIONS['employee'];
 
   return (
@@ -235,9 +236,9 @@ function MainTabs({ navigation }) {
   const userType = user?.user_type || 'company_member';
   const isIndividualUser = userType === 'individual';
 
-  // 4th tab: calendar for employees OR More button for managers/supervisors/finance
+  // 4th tab: calendar for employees/individual OR More button for managers/supervisors
   const getFourthTab = () => {
-    if (role === 'employee') {
+    if (role === 'employee' || isIndividualUser) {
       return (
         <Tab.Screen
           name="Calendar"

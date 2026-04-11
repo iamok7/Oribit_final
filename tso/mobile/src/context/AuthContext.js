@@ -113,9 +113,9 @@ export const AuthProvider = ({ children }) => {
   const isSupervisor = () => hasRole('supervisor');
   const isEmployee = () => hasRole('employee');
   const isFinance = () => hasRole('finance');
-  const canApproveExpenses = () => hasRole(['manager', 'supervisor', 'finance']);
-  const canManageUsers = () => hasRole('manager');
-  const canManageDepartments = () => hasRole(['manager', 'supervisor']);
+  const canApproveExpenses = () => !isIndividual() && hasRole(['manager', 'supervisor', 'finance']);
+  const canManageUsers = () => !isIndividual() && hasRole('manager');
+  const canManageDepartments = () => !isIndividual() && hasRole(['manager', 'supervisor']);
 
   return (
     <AuthContext.Provider
